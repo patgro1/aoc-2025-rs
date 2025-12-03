@@ -1,59 +1,54 @@
 advent_of_code::solution!(3);
 use rayon::prelude::*;
 
-fn parse_input(input: &str) -> Vec<Vec<char>> {
-    input.lines().map(|x| x.chars().collect()).collect()
-}
-
-pub fn find_biggest_combo(bank: &[char], combo_size: usize) -> Vec<char> {
+pub fn find_biggest_combo_sum(bytes: &[u8], combo_size: usize, current_sum: u64) -> u64 {
     // Since we need the biggest number, we need to find first the biggest number between
     // the start and the last, excluding the last item
-    let mut combo: Vec<char> = vec![];
-    let bank = bank.to_vec();
-    let bank_len = bank.len();
-    if bank_len == combo_size {
-        return bank.to_vec();
-    } else if combo_size == 0 {
-        return vec![];
+    let bank_len = bytes.len();
+    if combo_size == 0 {
+        return current_sum;
     }
-    let max = bank[..bank_len - (combo_size - 1)]
-        .iter()
-        .max()
-        .expect("We should have a max");
-    let max_pos = bank[..bank_len - (combo_size - 1)]
-        .iter()
-        .position(|x| x == max)
-        .expect("We found the number already, it must be there");
-    combo.push(*max);
-    combo.extend(find_biggest_combo(&bank[max_pos + 1..], combo_size - 1));
-    combo
+    if bytes.len() == combo_size {
+        let mut final_acc = current_sum;
+        for &b in bytes {
+            final_acc = final_acc * 10 + (b - 0x30) as u64;
+        }
+        return final_acc;
+    }
+    let mut max: u8 = bytes[0];
+    let mut max_pos = 0;
+    for x in 1..bank_len - (combo_size - 1) {
+        if bytes[x] == b'9' {
+            max = b'9';
+            max_pos = x;
+            break;
+        }
+        if bytes[x] > max {
+            max = bytes[x];
+            max_pos = x
+        }
+    }
+    find_biggest_combo_sum(
+        &bytes[max_pos + 1..],
+        combo_size - 1,
+        10 * current_sum + (max as u64 - 0x30),
+    )
 }
 
 pub fn part_one(input: &str) -> Option<u64> {
-    let input = parse_input(input);
     Some(
         input
-            .par_iter()
-            .map(|x| {
-                let val: String = find_biggest_combo(x, 2).into_iter().collect();
-                let val: u64 = val.parse().expect("We should have a int here");
-                val
-            })
+            .par_lines()
+            .map(|x| find_biggest_combo_sum(x.as_bytes(), 2, 0))
             .sum(),
     )
-    // Some(input.iter().map(|x| find_biggest_combo(x, 2)).sum())
 }
 
 pub fn part_two(input: &str) -> Option<u64> {
-    let input = parse_input(input);
     Some(
         input
-            .par_iter()
-            .map(|x| {
-                let val: String = find_biggest_combo(x, 12).into_iter().collect();
-                let val: u64 = val.parse().expect("We should have a int here");
-                val
-            })
+            .par_lines()
+            .map(|x| find_biggest_combo_sum(x.as_bytes(), 12, 0))
             .sum(),
     )
 }
