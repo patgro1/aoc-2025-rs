@@ -1,94 +1,74 @@
+use std::collections::VecDeque;
+
 advent_of_code::solution!(4);
 
+const CLEAR: u8 = 0;
+const ROLL: u8 = 1;
+
 #[derive(Debug)]
-pub enum Tile {
-    Clear,
-    Roll,
+pub struct Grid {
+    width: usize,
+    height: usize,
+    data: Vec<u8>,
 }
 
-pub fn parse_input(input: &str) -> Vec<Vec<Tile>> {
-    input
-        .lines()
-        .map(|l| {
-            l.chars()
-                .map(|c| match c {
-                    '.' => Tile::Clear,
-                    '@' => Tile::Roll,
-                    _ => panic!("Invalid characted detected"),
-                })
-                .collect()
-        })
-        .collect()
+pub fn parse_input(input: &str) -> Grid {
+    let lines: Vec<&str> = input.lines().collect();
+    let rows = lines.len();
+    let cols = lines[0].len();
+
+    let real_width = cols + 2;
+    let real_height = rows + 2;
+
+    let mut data = vec![CLEAR; real_width * real_height];
+
+    for (y, line) in lines.iter().enumerate() {
+        for (x, col) in line.chars().enumerate() {
+            if col == '@' {
+                data[(y + 1) * real_width + (x + 1)] = ROLL;
+            }
+        }
+    }
+    Grid {
+        width: real_width,
+        height: real_height,
+        data,
+    }
 }
 
-pub fn is_accessible(x: usize, y: usize, grid: &[Vec<Tile>]) -> u64 {
-    let mut number_of_roll_around: usize = 0;
-    let max_x = grid[0].len() - 1;
-    let max_y = grid.len() - 1;
-    // Check the top
-    if y > 0 {
-        if x > 0 {
-            number_of_roll_around += match grid[y - 1][x - 1] {
-                Tile::Clear => 0,
-                Tile::Roll => 1,
+pub fn print_grid(width: usize, height: usize, data: &[u8]) {
+    for y in 0..height {
+        for x in 0..width {
+            let idx = y * width + x;
+            if data[idx] == 1 {
+                print!("@");
+            } else {
+                print!(".");
             }
         }
-        number_of_roll_around += match grid[y - 1][x] {
-            Tile::Clear => 0,
-            Tile::Roll => 1,
-        };
-        if x < max_x {
-            number_of_roll_around += match grid[y - 1][x + 1] {
-                Tile::Clear => 0,
-                Tile::Roll => 1,
-            }
-        }
+        println!("\n");
     }
-    // Check the bottom
-    if y < max_y {
-        if x > 0 {
-            number_of_roll_around += match grid[y + 1][x - 1] {
-                Tile::Clear => 0,
-                Tile::Roll => 1,
-            }
-        }
-        number_of_roll_around += match grid[y + 1][x] {
-            Tile::Clear => 0,
-            Tile::Roll => 1,
-        };
-        if x < max_x {
-            number_of_roll_around += match grid[y + 1][x + 1] {
-                Tile::Clear => 0,
-                Tile::Roll => 1,
-            }
-        }
-    }
-    // Check left
-    if x > 0 {
-        number_of_roll_around += match grid[y][x - 1] {
-            Tile::Clear => 0,
-            Tile::Roll => 1,
-        };
-    }
-    // Check Right
-    if x < max_x {
-        number_of_roll_around += match grid[y][x + 1] {
-            Tile::Clear => 0,
-            Tile::Roll => 1,
-        };
-    }
+}
 
-    (number_of_roll_around < 4) as u64
+pub fn count_neighbours(idx: usize, width: usize, data: &[u8]) -> u8 {
+    data[idx - width - 1]
+        + data[idx - width]
+        + data[idx - width + 1]
+        + data[idx - 1]
+        + data[idx + 1]
+        + data[idx + width - 1]
+        + data[idx + width]
+        + data[idx + width + 1]
 }
 
 pub fn part_one(input: &str) -> Option<u64> {
     let grid = parse_input(input);
     let mut number_of_acc: u64 = 0;
-    for (y, row) in grid.iter().enumerate() {
-        for (x, tile) in row.iter().enumerate() {
-            number_of_acc += match tile {
-                Tile::Clear => 0,
-                Tile::Roll => is_accessible(x, y, &grid),
+    for y in 1..grid.height - 1 {
+        for x in 1..grid.width - 1 {
+            let idx = y * grid.width + x;
+            if grid.data[idx] == ROLL && count_neighbours(idx, grid.width, &grid.data) < 4 {
+                number_of_acc += 1;
             }
         }
     }
@@ -98,25 +78,36 @@ pub fn part_one(input: &str) -> Option<u64> {
 pub fn part_two(input: &str) -> Option<u64> {
     let mut grid = parse_input(input);
     let mut number_of_removed: u64 = 0;
-    loop {
-        let mut to_remove: Vec<(usize, usize)> = vec![];
-        for (y, row) in grid.iter().enumerate() {
-            for (x, tile) in row.iter().enumerate() {
-                let will_be_removed = match tile {
-                    Tile::Clear => 0,
-                    Tile::Roll => is_accessible(x, y, &grid),
-                };
-                if will_be_removed == 1 {
-                    to_remove.push((x, y));
-                }
+    let mut queue: VecDeque<usize> = VecDeque::new();
+    for y in 1..grid.height - 1 {
+        for x in 1..grid.width - 1 {
+            let idx = y * grid.width + x;
+            if grid.data[idx] == ROLL && count_neighbours(idx, grid.width, &grid.data) < 4 {
+                grid.data[idx] = CLEAR;
+                queue.push_back(idx);
+                number_of_removed += 1;
             }
         }
-        if to_remove.is_empty() {
-            break;
-        }
-        number_of_removed += to_remove.len() as u64;
-        for (x, y) in to_remove {
-            grid[y][x] = Tile::Clear;
+    }
+    while let Some(dead_idx) = queue.pop_front() {
+        let w = grid.width;
+
+        let neighbours = [
+            dead_idx - w - 1,
+            dead_idx - w,
+            dead_idx - w + 1,
+            dead_idx - 1,
+            dead_idx + 1,
+            dead_idx + w - 1,
+            dead_idx + w,
+            dead_idx + w + 1,
+        ];
+        for &idx in &neighbours {
+            if grid.data[idx] == ROLL && count_neighbours(idx, w, &grid.data) < 4 {
+                grid.data[idx] = CLEAR;
+                queue.push_back(idx);
+                number_of_removed += 1;
+            }
         }
     }
     Some(number_of_removed)
