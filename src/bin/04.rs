@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 advent_of_code::solution!(4);
 
 const CLEAR: u8 = 0;
@@ -78,18 +76,18 @@ pub fn part_one(input: &str) -> Option<u64> {
 pub fn part_two(input: &str) -> Option<u64> {
     let mut grid = parse_input(input);
     let mut number_of_removed: u64 = 0;
-    let mut queue: VecDeque<usize> = VecDeque::new();
+    let mut queue: Vec<usize> = Vec::new();
     for y in 1..grid.height - 1 {
         for x in 1..grid.width - 1 {
             let idx = y * grid.width + x;
             if grid.data[idx] == ROLL && count_neighbours(idx, grid.width, &grid.data) < 4 {
                 grid.data[idx] = CLEAR;
-                queue.push_back(idx);
+                queue.push(idx);
                 number_of_removed += 1;
             }
         }
     }
-    while let Some(dead_idx) = queue.pop_front() {
+    while let Some(dead_idx) = queue.pop() {
         let w = grid.width;
 
         let neighbours = [
@@ -105,7 +103,7 @@ pub fn part_two(input: &str) -> Option<u64> {
         for &idx in &neighbours {
             if grid.data[idx] == ROLL && count_neighbours(idx, w, &grid.data) < 4 {
                 grid.data[idx] = CLEAR;
-                queue.push_back(idx);
+                queue.push(idx);
                 number_of_removed += 1;
             }
         }
