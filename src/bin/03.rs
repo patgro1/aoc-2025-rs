@@ -1,6 +1,7 @@
 advent_of_code::solution!(3);
 use rayon::prelude::*;
 
+#[allow(clippy::needless_range_loop)]
 pub fn find_biggest_combo_sum(bytes: &[u8], combo_size: usize, current_sum: u64) -> u64 {
     // Since we need the biggest number, we need to find first the biggest number between
     // the start and the last, excluding the last item
