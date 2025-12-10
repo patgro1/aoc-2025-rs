@@ -1,5 +1,5 @@
 use rayon::prelude::*;
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 
 advent_of_code::solution!(10);
 
@@ -48,25 +48,27 @@ pub fn parse_input(input: &str) -> Vec<(u64, Vec<u64>, Vec<u64>)> {
     puzzle
 }
 
+const MAX_STATE_SIZE: u32 = 16;
 pub fn part_one(input: &str) -> Option<u64> {
     let puzzles = parse_input(input);
     Some(
         puzzles
             .par_iter()
             .map(|(final_state, effects, _)| {
-                let mut stack: VecDeque<(u64, u64, u64)> = VecDeque::new();
-                let mut visited: HashSet<(u64, u64)> = HashSet::new();
+                let mut stack: VecDeque<(u64, u64, u64)> = VecDeque::with_capacity(1000);
+                let mut visited: Vec<bool> = vec![false; 2u32.pow(MAX_STATE_SIZE) as usize];
+
                 // Intialize the stack with every effect, states at 0 and press at 1
                 for effect in effects {
                     stack.push_back((0, *effect, 1));
                 }
                 while let Some((state, n_effect, step)) = stack.pop_front() {
-                    if visited.contains(&(state, n_effect)) {
+                    let new_state = state ^ n_effect;
+                    if visited[new_state as usize] {
                         continue;
                     } else {
-                        visited.insert((state, n_effect));
+                        visited[new_state as usize] = true;
                     }
-                    let new_state = state ^ n_effect;
 
                     // println!(
                     //     "Target: {}, State: {}; Effect: {}, New State: {}; Step: {}",
@@ -78,9 +80,7 @@ pub fn part_one(input: &str) -> Option<u64> {
                     // We need to not add current effect since it will only reverse what we just
                     // did
                     for effect in effects {
-                        if *effect != n_effect {
-                            stack.push_back((new_state, *effect, step + 1));
-                        }
+                        stack.push_back((new_state, *effect, step + 1));
                     }
                 }
                 0
